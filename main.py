@@ -1,7 +1,6 @@
 import ingest_data
 import preprocessing
 import numpy as np
-import model
 import os
 
 filepath = "data"

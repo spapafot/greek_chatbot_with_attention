@@ -52,7 +52,7 @@ def vocab_creator(text_lists, vocab_size):
 
 
 def text2seq(encoder_text, decoder_text, vocab_size):
-    tokenizer = Tokenizer(num_words=vocab_size, filters='!\"#$%&()*+,-./:;=?@[\\]^_`{|}~\t\n', lower=False)
+    tokenizer = Tokenizer(num_words=vocab_size, filters='', lower=False, oov_token='<OOV>')
     tokenizer.fit_on_texts(encoder_text)
     tokenizer.fit_on_texts(decoder_text)
     encoder_sequences = tokenizer.texts_to_sequences(encoder_text)
