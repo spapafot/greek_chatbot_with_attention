@@ -1,11 +1,14 @@
 import re
 import pandas as pd
+import os
+import matplotlib.pyplot as plt
 
+filepath = "data"
 
-def structure_files(files, filepath):
+def structure_files(filepath):
     """removes whitespace lines and non character lines from the subtitle files and returns a list of all the sequences"""
     all_text = []
-    for i in files:
+    for i in os.walk(filepath):
         for x in i[2]:
             file = open(f"{filepath}/{x}", "r", encoding='cp1253')
             lines = file.readlines()
@@ -19,7 +22,8 @@ def structure_files(files, filepath):
     return all_text
 
 
-def create_clean_list(text_list, character_names):
+
+def create_clean_list(text_list, character_names=""):
     """takes a list of strings and removes unwanted characters"""
     text = " ".join(text_list)
     data = []
@@ -35,6 +39,7 @@ def create_clean_list(text_list, character_names):
     return data
 
 
+
 def get_vocab_size(data):
     """takes a list of clean strings and returns unique number of tokens"""
     return len(set(" ".join(data).split()))
@@ -44,8 +49,10 @@ def create_dataframe(data):
     """takes a list of clean strings and returns a dataframe of input_sequences and output_sequences"""
     q = []
     a = []
+    io = []
 
     for i, x in enumerate(data):
+
         if i % 2 == 0:
             q.append([x])
         else:
@@ -54,4 +61,14 @@ def create_dataframe(data):
     questions_df = pd.DataFrame(data=q, columns=["input"])
     responses_df = pd.DataFrame(data=a, columns=["output"])
     df = pd.concat([questions_df, responses_df], axis=1)
+    df.dropna(inplace=True)
+
     return df
+
+text = structure_files(filepath)
+data = create_clean_list(text)
+le = get_vocab_size(data)
+df = create_dataframe(data)
+print(df.head())
+
+df.to_csv("saved_files/formatted.txt", sep="\t", header=False, index=None)

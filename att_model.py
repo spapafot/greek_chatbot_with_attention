@@ -2,15 +2,9 @@ from tensorflow.keras import models, layers
 import tensorflow as tf
 import tensorflow_addons as tfa
 
-max_length_input = 25
-max_length_output = 25
-
-embedding_dim = 256
-units = 1024
-
 
 class Encoder(models.Model):
-    def __init__(self, vocab_size, embedding_dim, enc_units, batch_size, embedding_matrix):
+    def __init__(self, vocab_size, embedding_dim, enc_units, batch_size, embedding_matrix, max_length_input):
         super(Encoder, self).__init__()
         self.batch_sz = batch_size
         self.enc_units = enc_units
@@ -18,7 +12,6 @@ class Encoder(models.Model):
                                           output_dim=embedding_dim,
                                           input_length=max_length_input,
                                           weights=[embedding_matrix],
-                                          mask_zero=True,
                                           trainable=False)
 
         ##-------- LSTM layer in Encoder ------- ##
@@ -35,19 +28,17 @@ class Encoder(models.Model):
 
 
 class Decoder(models.Model):
-    def __init__(self, vocab_size, embedding_dim, dec_units, batch_size, embedding_matrix, attention_type='luong'):
+    def __init__(self, vocab_size, embedding_dim, dec_units, batch_size, max_length_input, max_length_output, attention_type='luong'):
         super(Decoder, self).__init__()
-        self.batch_sz = batch_size
+        self.batch_size = batch_size
         self.dec_units = dec_units
         self.attention_type = attention_type
-        self.embedding_matrix = embedding_matrix
+        self.max_length_output = max_length_output
         # Embedding Layer
         self.embedding = layers.Embedding(input_dim=vocab_size,
                                           output_dim=embedding_dim,
                                           input_length=max_length_input,
-                                          weights=[embedding_matrix],
-                                          mask_zero=True,
-                                          trainable=False)
+                                          trainable=True)
 
         # Final Dense layer on which softmax will be applied
         self.fc = tf.keras.layers.Dense(vocab_size)
@@ -60,7 +51,7 @@ class Decoder(models.Model):
 
         # Create attention mechanism with memory = None
         self.attention_mechanism = self.build_attention_mechanism(self.dec_units,
-                                                                  None, self.batch_size * [max_length_input],
+                                                                  None, batch_size * [max_length_input],
                                                                   self.attention_type)
 
         # Wrap attention mechanism with the fundamental rnn cell of decoder
@@ -88,13 +79,12 @@ class Decoder(models.Model):
             return tfa.seq2seq.LuongAttention(units=dec_units, memory=memory,
                                               memory_sequence_length=memory_sequence_length)
 
-    def build_initial_state(self, batch_sz, encoder_state, dtype):
-        decoder_initial_state = self.rnn_cell.get_initial_state(batch_size=batch_sz, dtype=dtype)
+    def build_initial_state(self, batch_size, encoder_state, dtype):
+        decoder_initial_state = self.rnn_cell.get_initial_state(batch_size=batch_size, dtype=dtype)
         decoder_initial_state = decoder_initial_state.clone(cell_state=encoder_state)
         return decoder_initial_state
 
     def call(self, inputs, initial_state):
         x = self.embedding(inputs)
-        outputs, _, _ = self.decoder(x, initial_state=initial_state,
-                                     sequence_length=self.batch_size * [max_length_output - 1])
+        outputs, _, _ = self.decoder(x, initial_state=initial_state, sequence_length=self.batch_size * [self.max_length_output - 1])
         return outputs

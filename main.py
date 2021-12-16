@@ -1,42 +1,110 @@
-import ingest_data
-import preprocessing
-import numpy as np
 import os
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+
+from att_model import Encoder, Decoder
+from dataset_creator import Dataset
+from utils import create_embedding_matrix
+from tensorflow.keras import optimizers
+import tensorflow as tf
+
+
 
 filepath = "data"
-all_files = os.walk(filepath)
+
 with open("saved_files/character_names.txt", "r") as f:
     character_names = f.readlines()
 
-character_names = list(map(lambda x: x.strip('\n'), character_names))
-text_list = ingest_data.structure_files(all_files, filepath)
-clean_list = ingest_data.create_clean_list(text_list, character_names)
-VOCAB_SIZE = ingest_data.get_vocab_size(clean_list)
-df = ingest_data.create_dataframe(clean_list)
-df = df.dropna()
+BUFFER_SIZE = 32000
+BATCH_SIZE = 64
+num_examples = 1000
+max_len = 25
+embedding_dim = 300
+units = 1024
 
-MAX_LEN = 25
-EMBEDDING_DIM = 300
+dataset = Dataset()
 
-X = preprocessing.clean_text(df['input'].to_list())
-y = preprocessing.clean_text(df['output'].to_list())
-y_tagged = preprocessing.tag_start_end_sentences(y)
+train_dataset, val_dataset, inp_lang, targ_lang = dataset.call(num_examples, BUFFER_SIZE, BATCH_SIZE)
 
-word2idx, idx2word, vocab = preprocessing.vocab_creator((X+y_tagged), VOCAB_SIZE)
-encoder_sequences, decoder_sequences = preprocessing.text2seq(encoder_text=X, decoder_text=y_tagged, vocab_size=VOCAB_SIZE)
-encoder_input_data, decoder_input_data = preprocessing.padding(encoder_sequences, decoder_sequences, MAX_LEN)
-embedding_matrix = preprocessing.create_embedding_matrix(vocab, VOCAB_SIZE, EMBEDDING_DIM)
-decoder_output_data = preprocessing.create_decoder_output(decoder_input_data, len(encoder_sequences), MAX_LEN, VOCAB_SIZE)
-decoder_output_data.astype(dtype="float32")
+vocab_inp_size = len(inp_lang.word_index) + 1
+vocab_tar_size = len(targ_lang.word_index) + 1
+steps_per_epoch = num_examples // BATCH_SIZE
+example_input_batch, example_target_batch = next(iter(train_dataset))
+max_length_input = example_input_batch.shape[1]
+max_length_output = example_target_batch.shape[1]
 
-embedding_layer = model.create_embedding_layer(VOCAB_SIZE, EMBEDDING_DIM, MAX_LEN, embedding_matrix)
-model = model.create_seq2seq_model(EMBEDDING_DIM, VOCAB_SIZE, MAX_LEN, embedding_layer)
+
+embedding_matrix = create_embedding_matrix(inp_lang.word_index, vocab_inp_size, embedding_dim)
+
+encoder_model = Encoder(vocab_size=vocab_inp_size,
+                        embedding_dim=embedding_dim,
+                        enc_units=units,
+                        batch_size=BATCH_SIZE,
+                        embedding_matrix=embedding_matrix,
+                        max_length_input=max_length_input)
+
+decoder_model = Decoder(vocab_size=vocab_tar_size,
+                        embedding_dim=embedding_dim,
+                        dec_units=units,
+                        batch_size=BATCH_SIZE,
+                        max_length_input=max_length_input,
+                        max_length_output=max_length_output)
+
+optimizer = optimizers.Adam(learning_rate=0.0002)
+
+
+def loss_function(real, pred):
+    # real shape = (BATCH_SIZE, max_length_output)
+    # pred shape = (BATCH_SIZE, max_length_output, tar_vocab_size )
+    cross_entropy = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True, reduction='none')
+    loss = cross_entropy(y_true=real, y_pred=pred)
+    mask = tf.logical_not(tf.math.equal(real, 0))  # output 0 for y=0 else output 1
+    mask = tf.cast(mask, dtype=loss.dtype)
+    loss = mask * loss
+    loss = tf.reduce_mean(loss)
+    return loss
+
+
+@tf.function
+def train_step(inp, targ, enc_hidden):
+    loss = 0
+
+    with tf.GradientTape() as tape:
+        enc_output, enc_h, enc_c = encoder_model(inp, enc_hidden)
+
+        dec_input = targ[:, :-1]  # Ignore <end> token
+        real = targ[:, 1:]  # ignore <start> token
+
+        # Set the AttentionMechanism object with encoder_outputs
+        decoder_model.attention_mechanism.setup_memory(enc_output)
+
+        # Create AttentionWrapperState as initial_state for decoder
+        decoder_initial_state = decoder_model.build_initial_state(BATCH_SIZE, [enc_h, enc_c], tf.float32)
+        pred = decoder_model(dec_input, decoder_initial_state)
+        logits = pred.rnn_output
+        loss = loss_function(real, logits)
+
+    variables = encoder_model.trainable_variables + decoder_model.trainable_variables
+    gradients = tape.gradient(loss, variables)
+    optimizer.apply_gradients(zip(gradients, variables))
+
+    return loss
+
+
+EPOCHS = 10
+
+for epoch in range(EPOCHS):
+
+    enc_hidden = encoder_model.initialize_hidden_state()
+    total_loss = 0
+
+    for (batch, (inp, targ)) in enumerate(train_dataset.take(steps_per_epoch)):
+
+        batch_loss = train_step(inp, targ, enc_hidden)
+        total_loss += batch_loss
+        if batch % 100 == 0:
+            print('Epoch {} Batch {} Loss {:.4f}'.format(epoch + 1,
+                                                         batch,
+                                                         batch_loss.numpy()))
 
 if __name__ == '__main__':
     print("GO")
-
-
-"""
-numpy.core._exceptions.MemoryError: Unable to allocate 23.5 GiB for an array with shape (12092, 25, 20828) and data type float32
-https://stackoverflow.com/questions/57507832/unable-to-allocate-array-with-shape-and-data-type
-"""

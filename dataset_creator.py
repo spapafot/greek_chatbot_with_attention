@@ -11,8 +11,10 @@ class Dataset:
         self.inp_lang_tokenizer = None
         self.targ_lang_tokenizer = None
 
-    def unicode_to_ascii(self, s):
-        return ''.join(c for c in unicodedata.normalize('NFD', s) if unicodedata.category(c) != 'Mn')
+    def unicode_to_ascii(self, text):
+
+        return ''.join(c for c in unicodedata.normalize('NFD', text) if unicodedata.category(c) != 'Mn')
+
 
     ## Step 1 and Step 2
     def preprocess_sentence(self, w):
@@ -25,7 +27,7 @@ class Dataset:
         w = re.sub(r'[" "]+', " ", w)
 
         # replacing everything with space except (a-z, A-Z, ".", "?", "!", ",")
-        w = re.sub(r"[^a-zA-Z?.!,¿]+", " ", w)
+        # w = re.sub(r"[^a-zA-Z?.!,¿]+", " ", w)
 
         w = w.strip()
 
@@ -37,9 +39,8 @@ class Dataset:
     def create_dataset(self, path, num_examples):
         # path : path to spa-eng.txt file
         # num_examples : Limit the total number of training example for faster training (set num_examples = len(lines) to use full data)
-        lines = io.open(path, encoding='UTF-8').read().strip().split('\n')
+        lines = io.open(path, encoding='utf8').read().strip().split('\n')
         word_pairs = [[self.preprocess_sentence(w) for w in l.split('\t')] for l in lines[:num_examples]]
-
         return zip(*word_pairs)
 
     # Step 3 and Step 4
@@ -70,7 +71,7 @@ class Dataset:
         return input_tensor, target_tensor, inp_lang_tokenizer, targ_lang_tokenizer
 
     def call(self, num_examples, BUFFER_SIZE, BATCH_SIZE):
-        file_path = download_nmt()
+        file_path = "saved_files/formatted.txt"
         input_tensor, target_tensor, self.inp_lang_tokenizer, self.targ_lang_tokenizer = self.load_dataset(file_path, num_examples)
 
         input_tensor_train, input_tensor_val, target_tensor_train, target_tensor_val = train_test_split(input_tensor, target_tensor, test_size=0.2)
