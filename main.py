@@ -13,21 +13,20 @@ with open("saved_files/character_names.txt", "r") as f:
 
 BUFFER_SIZE = 32000
 BATCH_SIZE = 64
-num_examples = 1000
-max_len = 25
 embedding_dim = 300
 units = 1024
 
 dataset = Dataset()
 
-train_dataset, val_dataset, inp_lang, targ_lang = dataset.call(num_examples, BUFFER_SIZE, BATCH_SIZE)
+train_dataset, val_dataset, inp_lang, targ_lang = dataset.call(BUFFER_SIZE, BATCH_SIZE)
 
 vocab_inp_size = len(inp_lang.word_index) + 1
 vocab_tar_size = len(targ_lang.word_index) + 1
-steps_per_epoch = num_examples // BATCH_SIZE
-example_input_batch, example_target_batch = next(iter(train_dataset))
-max_length_input = example_input_batch.shape[1]
-max_length_output = example_target_batch.shape[1]
+steps_per_epoch = len(train_dataset)*BATCH_SIZE // BATCH_SIZE
+input_batch, target_batch = next(iter(train_dataset))
+max_length_input = input_batch.shape[1]
+max_length_output = target_batch.shape[1]
+
 
 
 embedding_matrix = create_embedding_matrix(inp_lang.word_index, vocab_inp_size, embedding_dim)
@@ -87,7 +86,7 @@ def train_step(inp, targ, enc_hidden):
     return loss
 
 
-EPOCHS = 10
+EPOCHS = 3
 
 for epoch in range(EPOCHS):
 
