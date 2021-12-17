@@ -18,7 +18,7 @@ def structure_files(filepath):
             for line in lines:
                 if re.search('^[0-9]+$', line) is None and re.search('^[0-9]{2}:[0-9]{2}:[0-9]{2}', line) is None and re.search('^$', line) is None:
                     text.append(line.rstrip('\n').lower())
-            all_text += text[:-4]
+            all_text += text[:-10]
     return all_text
 
 
@@ -27,7 +27,7 @@ def create_clean_list(text_list, character_names=""):
     """takes a list of strings and removes unwanted characters"""
     text = " ".join(text_list)
     data = []
-    text = re.split('[.?;]', text)
+    text = re.split('[.?;,]', text)
     for i in text:
         i = re.sub(r"(\[.*?\])", "", i)
         i = re.sub(r"\d", "", i)
@@ -71,4 +71,4 @@ le = get_vocab_size(data)
 df = create_dataframe(data)
 print(df.head())
 
-df.to_csv("saved_files/formatted.txt", sep="\t", header=False, index=None)
+df.to_csv("saved_files/formatted.txt", sep="\t", header=False, index=False)

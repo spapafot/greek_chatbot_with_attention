@@ -6,7 +6,7 @@ import tensorflow_addons as tfa
 class Encoder(models.Model):
     def __init__(self, vocab_size, embedding_dim, enc_units, batch_size, embedding_matrix, max_length_input):
         super(Encoder, self).__init__()
-        self.batch_sz = batch_size
+        self.batch_size = batch_size
         self.enc_units = enc_units
         self.embedding = layers.Embedding(input_dim=vocab_size, output_dim=embedding_dim, input_length=max_length_input, weights=[embedding_matrix], trainable=False)
         self.lstm_layer = layers.LSTM(self.enc_units, return_sequences=True, return_state=True, recurrent_initializer='glorot_uniform')
@@ -17,7 +17,7 @@ class Encoder(models.Model):
         return output, h, c
 
     def initialize_hidden_state(self):
-        return [tf.zeros((self.batch_sz, self.enc_units)), tf.zeros((self.batch_sz, self.enc_units))]
+        return [tf.zeros((self.batch_size, self.enc_units)), tf.zeros((self.batch_size, self.enc_units))]
 
 
 class Decoder(models.Model):
