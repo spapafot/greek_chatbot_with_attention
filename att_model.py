@@ -8,15 +8,8 @@ class Encoder(models.Model):
         super(Encoder, self).__init__()
         self.batch_sz = batch_size
         self.enc_units = enc_units
-        self.embedding = layers.Embedding(input_dim=vocab_size,
-                                          output_dim=embedding_dim,
-                                          input_length=max_length_input,
-                                          weights=[embedding_matrix],
-                                          trainable=False)
-
-        ##-------- LSTM layer in Encoder ------- ##
-        self.lstm_layer = layers.LSTM(self.enc_units, return_sequences=True, return_state=True,
-                                      recurrent_initializer='glorot_uniform')
+        self.embedding = layers.Embedding(input_dim=vocab_size, output_dim=embedding_dim, input_length=max_length_input, weights=[embedding_matrix], trainable=False)
+        self.lstm_layer = layers.LSTM(self.enc_units, return_sequences=True, return_state=True, recurrent_initializer='glorot_uniform')
 
     def call(self, x, hidden):
         x = self.embedding(x)
@@ -34,50 +27,25 @@ class Decoder(models.Model):
         self.dec_units = dec_units
         self.attention_type = attention_type
         self.max_length_output = max_length_output
-        # Embedding Layer
-        self.embedding = layers.Embedding(input_dim=vocab_size,
-                                          output_dim=embedding_dim,
-                                          input_length=max_length_input,
-                                          trainable=True)
-
-        # Final Dense layer on which softmax will be applied
+        self.embedding = layers.Embedding(input_dim=vocab_size, output_dim=embedding_dim, input_length=max_length_input, trainable=True)
         self.fc = tf.keras.layers.Dense(vocab_size)
-
-        # Define the fundamental cell for decoder recurrent structure
         self.decoder_rnn_cell = tf.keras.layers.LSTMCell(self.dec_units)
-
-        # Sampler
         self.sampler = tfa.seq2seq.sampler.TrainingSampler()
-
-        # Create attention mechanism with memory = None
-        self.attention_mechanism = self.build_attention_mechanism(self.dec_units,
-                                                                  None, batch_size * [max_length_input],
-                                                                  self.attention_type)
-
-        # Wrap attention mechanism with the fundamental rnn cell of decoder
+        self.attention_mechanism = self.build_attention_mechanism(self.dec_units, None, batch_size * [max_length_input], self.attention_type)
         self.rnn_cell = self.build_rnn_cell(batch_size)
-
-        # Define the decoder with respect to fundamental rnn cell
         self.decoder = tfa.seq2seq.BasicDecoder(self.rnn_cell, sampler=self.sampler, output_layer=self.fc)
 
-    def build_rnn_cell(self, batch_sz):
-        rnn_cell = tfa.seq2seq.AttentionWrapper(self.decoder_rnn_cell,
-                                                self.attention_mechanism, attention_layer_size=self.dec_units)
+    def build_rnn_cell(self, batch_size):
+
+        rnn_cell = tfa.seq2seq.AttentionWrapper(self.decoder_rnn_cell, self.attention_mechanism, attention_layer_size=self.dec_units)
         return rnn_cell
 
     def build_attention_mechanism(self, dec_units, memory, memory_sequence_length, attention_type='luong'):
-        # ------------- #
-        # typ: Which sort of attention (Bahdanau, Luong)
-        # dec_units: final dimension of attention outputs
-        # memory: encoder hidden states of shape (batch_size, max_length_input, enc_units)
-        # memory_sequence_length: 1d array of shape (batch_size) with every element set to max_length_input (for masking purpose)
 
-        if (attention_type == 'bahdanau'):
-            return tfa.seq2seq.BahdanauAttention(units=dec_units, memory=memory,
-                                                 memory_sequence_length=memory_sequence_length)
+        if attention_type == 'bahdanau':
+            return tfa.seq2seq.BahdanauAttention(units=dec_units, memory=memory, memory_sequence_length=memory_sequence_length)
         else:
-            return tfa.seq2seq.LuongAttention(units=dec_units, memory=memory,
-                                              memory_sequence_length=memory_sequence_length)
+            return tfa.seq2seq.LuongAttention(units=dec_units, memory=memory, memory_sequence_length=memory_sequence_length)
 
     def build_initial_state(self, batch_size, encoder_state, dtype):
         decoder_initial_state = self.rnn_cell.get_initial_state(batch_size=batch_size, dtype=dtype)
@@ -86,5 +54,5 @@ class Decoder(models.Model):
 
     def call(self, inputs, initial_state):
         x = self.embedding(inputs)
-        outputs, _, _ = self.decoder(x, initial_state=initial_state, sequence_length=self.batch_size * [self.max_length_output - 1])
+        outputs, _, _ = self.decoder(x, initial_state=initial_state, sequence_length=self.batch_size * [self.max_length_output-1])
         return outputs

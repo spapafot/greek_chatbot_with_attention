@@ -8,9 +8,6 @@ from tensorflow.keras import optimizers
 import tensorflow as tf
 
 
-
-filepath = "data"
-
 with open("saved_files/character_names.txt", "r") as f:
     character_names = f.readlines()
 
@@ -102,9 +99,7 @@ for epoch in range(EPOCHS):
         batch_loss = train_step(inp, targ, enc_hidden)
         total_loss += batch_loss
         if batch % 100 == 0:
-            print('Epoch {} Batch {} Loss {:.4f}'.format(epoch + 1,
-                                                         batch,
-                                                         batch_loss.numpy()))
+            print('Epoch {} Batch {} Loss {:.4f}'.format(epoch + 1, batch, batch_loss.numpy()))
 
 if __name__ == '__main__':
     print("GO")
