@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 
 
 # change this to your raw data folder (srt subtitles files)
-filepath = "data"
+# filepath = "data"
 
 
 def structure_files(filepath):
@@ -61,10 +61,13 @@ def create_dataframe(data):
     return df
 
 
-text = structure_files(filepath)
-data = create_clean_list(text)
-df = create_dataframe(data)
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='Filepath')
+    parser.add_argument('-w', type=str, required=True, help="Filepath to raw subtitle files")
+    args = parser.parse_args()
 
+    text = structure_files(args.filepath)
+    data = create_clean_list(text)
+    df = create_dataframe(data)
+    df.to_csv("saved_files/formatted.txt", sep="\t", header=False, index=False)
 
-# save in csv format so it can be loaded in the dataset_creator, you can tweak according to your needs
-df.to_csv("saved_files/formatted.txt", sep="\t", header=False, index=False)
