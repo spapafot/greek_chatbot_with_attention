@@ -17,17 +17,20 @@ class Encoder(models.Model):
         return output, h, c
 
     def initialize_hidden_state(self):
+        # in case of initialization memory error for larger projects use utilities cleanup()
         return [tf.zeros((self.batch_size, self.enc_units)), tf.zeros((self.batch_size, self.enc_units))]
 
 
 class Decoder(models.Model):
-    def __init__(self, vocab_size, embedding_dim, dec_units, batch_size, max_length_input, max_length_output, attention_type='luong'):
+    def __init__(self, vocab_size, embedding_dim, dec_units, batch_size, max_length_input, max_length_output, embedding_matrix, attention_type='bahdanau'):
         super(Decoder, self).__init__()
         self.batch_size = batch_size
         self.dec_units = dec_units
         self.attention_type = attention_type
         self.max_length_output = max_length_output
-        self.embedding = layers.Embedding(input_dim=vocab_size, output_dim=embedding_dim, input_length=max_length_input, trainable=True)
+
+        # do not use weights if you want to train with random weights, i am using spacy's pretrained vectors
+        self.embedding = layers.Embedding(input_dim=vocab_size, output_dim=embedding_dim, input_length=max_length_input,weights=[embedding_matrix], trainable=False)
         self.fc = tf.keras.layers.Dense(vocab_size)
         self.decoder_rnn_cell = tf.keras.layers.LSTMCell(self.dec_units)
         self.sampler = tfa.seq2seq.sampler.TrainingSampler()
@@ -42,6 +45,7 @@ class Decoder(models.Model):
 
     def build_attention_mechanism(self, dec_units, memory, memory_sequence_length, attention_type='luong'):
 
+        """from tensorflow documentation, you can use bahdanau in your project, luong works better in my case"""
         if attention_type == 'bahdanau':
             return tfa.seq2seq.BahdanauAttention(units=dec_units, memory=memory, memory_sequence_length=memory_sequence_length)
         else:

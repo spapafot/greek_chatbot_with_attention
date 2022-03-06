@@ -3,7 +3,10 @@ import pandas as pd
 import os
 import matplotlib.pyplot as plt
 
+
+# change this to your raw data folder (srt subtitles files)
 filepath = "data"
+
 
 def structure_files(filepath):
     """removes whitespace lines and non character lines from the subtitle files and returns a list of all the sequences"""
@@ -18,7 +21,7 @@ def structure_files(filepath):
             for line in lines:
                 if re.search('^[0-9]+$', line) is None and re.search('^[0-9]{2}:[0-9]{2}:[0-9]{2}', line) is None and re.search('^$', line) is None:
                     text.append(line.rstrip('\n').lower())
-            all_text += text[:-10]
+            all_text += text[:-10] #remove repetitive ending credits
     return all_text
 
 
@@ -39,20 +42,12 @@ def create_clean_list(text_list, character_names=""):
     return data
 
 
-
-def get_vocab_size(data):
-    """takes a list of clean strings and returns unique number of tokens"""
-    return len(set(" ".join(data).split()))
-
-
 def create_dataframe(data):
     """takes a list of clean strings and returns a dataframe of input_sequences and output_sequences"""
     q = []
     a = []
-    io = []
 
     for i, x in enumerate(data):
-
         if i % 2 == 0:
             q.append([x])
         else:
@@ -61,14 +56,15 @@ def create_dataframe(data):
     questions_df = pd.DataFrame(data=q, columns=["input"])
     responses_df = pd.DataFrame(data=a, columns=["output"])
     df = pd.concat([questions_df, responses_df], axis=1)
-    df.dropna(inplace=True)
+    df.dropna(inplace=True) #remove NA in case you have an odd number io
 
     return df
 
+
 text = structure_files(filepath)
 data = create_clean_list(text)
-le = get_vocab_size(data)
 df = create_dataframe(data)
-print(df.head())
 
+
+# save in csv format so it can be loaded in the dataset_creator, you can tweak according to your needs
 df.to_csv("saved_files/formatted.txt", sep="\t", header=False, index=False)
