@@ -13,9 +13,13 @@ Requirements
 
 Usage: 
 
-> git clone https://github.com/spapafot/greek_chatbot_with_attention.git . 
+> pip install -r requirements.txt
 
-Add a folder with your raw data (greek subtitle files .srt format) and add the filepath to the ingest_data script
+> git clone https://github.com/spapafot/greek_chatbot_with_attention.git my-project
+
+> cd my-project
+
+Add a folder with your raw data (greek subtitle files .srt format) to root and add the filepath to the ingest_data script
 
 > python3 ingest_data.py -filepath
 
